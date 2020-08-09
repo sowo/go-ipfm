@@ -9,7 +9,7 @@ Runing on Windows, Linux and Unix based systems
 ### Installation
 Prerequisites: [Golang](https://golang.org) + [Git](https://git-scm.com)
 Installing for windows - linux - freebsd and macos. (linux is recommended)  
-Clone the code form Github or [Snix](https://slc.snix.ir) servers.
+Clone the code form Github or [Snix](https://slc.snix.ir/snix/go-ipfm) servers.
 ```
 # git clone https://slc.snix.ir/snix/go-ipfm.git          # Snix
 # git clone https://github.com/Sina-Ghaderi/go-ipfm.git   # Github  
