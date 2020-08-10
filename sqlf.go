@@ -63,6 +63,8 @@ func storeItem(db *sql.DB, items map[string]datausage) {
 	`
 	stmt, err := db.Prepare(sqlAdditem)
 	nstmt, err := db.Prepare(sqlSumitem)
+	defer stmt.Close()
+	defer nstmt.Close()
 
 	if err != nil {
 		log.Fatal(err)
@@ -73,13 +75,12 @@ func storeItem(db *sql.DB, items map[string]datausage) {
 			if err != nil {
 				log.Fatal(err)
 			}
-			defer nstmt.Close()
+
 		} else {
 			_, err := stmt.Exec(item.ip, item.rx, item.tx)
 			if err != nil {
 				log.Fatal(err)
 			}
-			defer stmt.Close()
 		}
 	}
 }
