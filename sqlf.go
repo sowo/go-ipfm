@@ -120,3 +120,4 @@ func ipExists(db *sql.DB, qur string) bool {
 	}
 	return true
 }
+
