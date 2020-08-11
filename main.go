@@ -4,6 +4,7 @@ import (
 	"flag"
 	"log"
 	"net"
+	"regexp"
 	"strconv"
 	"time"
 
@@ -12,23 +13,56 @@ import (
 	"github.com/google/gopacket/pcapgo"
 )
 
+const (
+	_  = iota
+	kB = 1 << (10 * iota)
+	mB
+	gB
+	tB
+)
+
 var finish = make(chan struct{})
 var nmap = make(map[string]datausage)
 var (
-	cidr *net.IPNet
-	svtf *string
+	cidr                        *net.IPNet
+	svtf, infc, srtx, srfm, trm *string
+	cHz                         uint
 )
 
 func main() {
 	log.SetFlags(0)
 	ipxr := flag.String("net", "192.168.1.0/24", "network to capture on <ipv4/cidr>")
-	infc := flag.String("inf", "lo", "network interface to capture on <interface_name>")
+	infc = flag.String("inf", "lo", "network interface to capture on <interface_name>")
 	dbfi := flag.String("svd", "ipfm.db", "database to save data <database_name>")
 	ftim := flag.String("ttf", "3", "time in second to flush data into the database <integer>")
 	svtf = flag.String("txt", "false", "also save data to file <filename|false>")
+	trm = flag.String("hbm", "MB", "show (in txt file) data usage in <KB|MB|GB|TB>")
+	srtx = flag.String("srt", "RX", "sort data in txt file based on <TX|RX>")
+	srfm = flag.String("srf", "descending", "sort data in txt file based on <descending|ascending>")
+
 	flag.Parse()
 	if *dbfi == *svtf {
 		log.Fatal("database name and filename can not be the same.")
+	}
+	if match, _ := regexp.MatchString("^(RX|TX)$", *srtx); !match {
+		log.Fatal("regexp.MatchString: syntax err in srt flag ", *srtx)
+	}
+	if match, _ := regexp.MatchString("^(descending|ascending)$", *srfm); !match {
+		log.Fatal("regexp.MatchString: syntax err in srf flag ", *srfm)
+	}
+	if match, _ := regexp.MatchString("^(KB|MB|GB|TB)$", *trm); !match {
+		log.Fatal("regexp.MatchString: syntax err in hbm flag ", *trm)
+	} else {
+		switch *trm {
+		case "KB":
+			cHz = kB
+		case "MB":
+			cHz = mB
+		case "GB":
+			cHz = gB
+		case "TB":
+			cHz = tB
+		}
 	}
 	sectime, err := strconv.Atoi(*ftim)
 	if err != nil {
@@ -62,6 +96,7 @@ func main() {
 
 func accFrom(ip *layers.IPv4) {
 	if issrc := cidr.Contains(net.ParseIP(ip.SrcIP.String())); issrc {
+		// RX OR TX ?
 		if val, ok := nmap[ip.SrcIP.String()]; !ok {
 			nmap[ip.SrcIP.String()] = datausage{ip: ip.SrcIP.String(), tx: uint(ip.Length)}
 		} else {
