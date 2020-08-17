@@ -4,11 +4,11 @@ Core features:
 Measure download and upload usage per ip  
 Save data to SQL database and text file  
 No dependence on libpcap  
-Runing on Windows, Linux and Unix based systems  
+Runing on Linux and Unix based systems  
 
 ### Installation
 Prerequisites: [Golang](https://golang.org) + [Git](https://git-scm.com)
-Installing for windows - linux - freebsd and macos. (linux is recommended)  
+Installing for linux - freebsd and macos. (linux is recommended)  
 Clone the code form [Github](https://github.com/sina-ghaderi/go-ipfm) or [Snix](https://slc.snix.ir) servers.
 ```
 # git clone https://slc.snix.ir/snix/go-ipfm.git          # Snix
