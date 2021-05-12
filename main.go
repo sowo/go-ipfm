@@ -26,6 +26,7 @@ var nmap = make(map[string]datausage)
 var (
 	cidr                        *net.IPNet
 	svtf, infc, srtx, srfm, trm *string
+	sprt, dprt                  *int
 	cHz                         uint
 )
 
@@ -39,6 +40,8 @@ func main() {
 	trm = flag.String("hbm", "MB", "show (in txt file) data usage in <KB|MB|GB|TB>")
 	srtx = flag.String("srt", "RX", "sort data in txt file based on <TX|RX>")
 	srfm = flag.String("srf", "descending", "sort data in txt file based on <descending|ascending>")
+	sprt = flag.Int("sprt", -1, "port to capture <0-65535>")
+	dprt = flag.Int("dprt", -1, "port to capture <0-65535>")
 
 	flag.Parse()
 	if *dbfi == *svtf {
@@ -77,24 +80,29 @@ func main() {
 		log.Fatal(err)
 	}
 	defer handle.Close()
-	log.Printf("starting go-ipfm on %v interface, network %v, database %v", *infc, *ipxr, *dbfi)
+	log.Printf("starting go-ipfm on %v interface, network %v, database %v, source port %v, dest port %v", *infc, *ipxr, *dbfi, *sprt, *dprt)
 	flush := time.Tick(time.Duration(sectime) * time.Second)
 	packetSource := gopacket.NewPacketSource(handle, layers.LayerTypeEthernet)
 	for packet := range packetSource.Packets() {
 		if ipLayer := packet.Layer(layers.LayerTypeIPv4); ipLayer != nil {
 			ip := ipLayer.(*layers.IPv4)
-			select {
-			case <-flush:
-				saveTOdatabases(*dbfi)
-				accFrom(ip)
-			default:
-				accFrom(ip)
+			if tcpLayer := packet.Layer(layers.LayerTypeTCP); tcpLayer != nil {
+				tcp := tcpLayer.(*layers.TCP)
+				if (*sprt == -1 || tcp.SrcPort == layers.TCPPort(*sprt)) && (*dprt == -1 || tcp.DstPort == layers.TCPPort(*dprt)) {
+					select {
+					case <-flush:
+						// saveTOdatabases(*dbfi)
+						accFrom(ip, tcp)
+					default:
+						accFrom(ip, tcp)
+					}
+				}
 			}
 		}
 	}
 }
 
-func accFrom(ip *layers.IPv4) {
+func accFrom(ip *layers.IPv4, tcp *layers.TCP) {
 	if issrc := cidr.Contains(net.ParseIP(ip.SrcIP.String())); issrc {
 		// RX OR TX ?
 		if val, ok := nmap[ip.SrcIP.String()]; !ok {
