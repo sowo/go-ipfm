@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"log"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -10,6 +11,7 @@ import (
 type datausage struct {
 	ip     string
 	tx, rx uint
+	tstamp string
 }
 
 func initDB(filepath string) *sql.DB {
@@ -25,10 +27,11 @@ func createTable(db *sql.DB) {
 	// create table if not exists
 	sqlTable := `
 	CREATE TABLE IF NOT EXISTS items(
-		IP TEXT NOT NULL PRIMARY KEY,
+		IP TEXT NOT NULL,
 		RX TEXT,
 		TX TEXT,
-		TIME DATETIME
+		TIME TEXT,
+		PRIMARY KEY (IP, TIME)
 	);
 	`
 
@@ -46,7 +49,7 @@ func storeItem(db *sql.DB, items map[string]datausage) {
 		RX,
 		TX,
 		TIME
-	) values(?, ?, ?, CURRENT_TIMESTAMP)
+	) values(?, ?, ?, ?)
 	`
 
 	sqlSumitem := `
@@ -57,9 +60,9 @@ func storeItem(db *sql.DB, items map[string]datausage) {
 		TIME
 	) values(
 		?, 
-		(SELECT RX FROM items WHERE IP=?)+?, 
-		(SELECT TX FROM items WHERE IP=?)+?, 
-		CURRENT_TIMESTAMP)
+		(SELECT RX FROM items WHERE IP=? AND TIME=?)+?, 
+		(SELECT TX FROM items WHERE IP=? AND TIME=?)+?, 
+		?)
 	`
 	stmt, err := db.Prepare(sqlAdditem)
 	nstmt, err := db.Prepare(sqlSumitem)
@@ -71,13 +74,13 @@ func storeItem(db *sql.DB, items map[string]datausage) {
 	}
 	for _, item := range items {
 		if ipExists(db, item.ip) {
-			_, err := nstmt.Exec(item.ip, item.ip, item.rx, item.ip, item.tx)
+			_, err := nstmt.Exec(item.ip, item.ip, time.Now().Format(captureMask), item.rx, item.ip, time.Now().Format(captureMask), item.tx, time.Now().Format(captureMask))
 			if err != nil {
 				log.Fatal(err)
 			}
 
 		} else {
-			_, err := stmt.Exec(item.ip, item.rx, item.tx)
+			_, err := stmt.Exec(item.ip, item.rx, item.tx, time.Now().Format(captureMask))
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -85,13 +88,18 @@ func storeItem(db *sql.DB, items map[string]datausage) {
 	}
 }
 
-func readItem(db *sql.DB) map[string]datausage {
+func readItem(db *sql.DB, date string) map[string]datausage {
 	// read and return data from database
 	sqlReadall := `
-	SELECT IP, RX, TX FROM items
-	ORDER BY datetime(TIME) DESC
+	SELECT IP, RX, TX, TIME FROM items
+	WHERE TIME = ?
+	ORDER BY TIME DESC
 	`
-	rows, err := db.Query(sqlReadall)
+	stmt, err := db.Prepare(sqlReadall)
+	if err != nil {
+		log.Fatal(err)
+	}
+	rows, err := stmt.Query(date)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -100,7 +108,7 @@ func readItem(db *sql.DB) map[string]datausage {
 	result := make(map[string]datausage)
 	for rows.Next() {
 		item := datausage{}
-		if err := rows.Scan(&item.ip, &item.rx, &item.tx); err != nil {
+		if err := rows.Scan(&item.ip, &item.rx, &item.tx, &item.tstamp); err != nil {
 			log.Fatal(err)
 		}
 		result[item.ip] = item
@@ -110,8 +118,8 @@ func readItem(db *sql.DB) map[string]datausage {
 }
 
 func ipExists(db *sql.DB, qur string) bool {
-	sqlStmt := `SELECT IP FROM items WHERE IP = ?`
-	err := db.QueryRow(sqlStmt, qur).Scan(&qur)
+	sqlStmt := `SELECT IP FROM items WHERE IP = ? and TIME = ?`
+	err := db.QueryRow(sqlStmt, qur, time.Now().Format(captureMask)).Scan(&qur)
 	if err != nil {
 		if err != sql.ErrNoRows {
 			log.Fatal(err)
@@ -120,4 +128,3 @@ func ipExists(db *sql.DB, qur string) bool {
 	}
 	return true
 }
-
