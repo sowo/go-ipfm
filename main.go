@@ -99,7 +99,7 @@ func main() {
 		}
 	}
 	defer handle.Close()
-	log.Printf("starting go-ipfm on %v interface, database %v, filter \"%v\"", *infc, *dbfi, *filt)
+	log.Printf("starting go-ipfm on %v interface, database %v, filter \"%v\", directory %v", *infc, *dbfi, *filt, *dir)
 	flush := time.Tick(time.Duration(sectime) * time.Second)
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 	for packet := range packetSource.Packets() {
