@@ -68,6 +68,9 @@ func main() {
 			cHz = tB
 		}
 	}
+	if *filt == "off" {
+		*filt = ""
+	}
 	sectime, err := strconv.Atoi(*ftim)
 	if err != nil {
 		log.Fatal(err)
